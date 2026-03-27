@@ -1,143 +1,187 @@
 # Metrovia — Practical Machine Learning for Real-World Transit Problems
 
-Metrovia analyzes historical bus and metro transit data to identify peak delay periods, frequently affected routes, and recurring patterns that impact daily commuters.
+**Analyst:** Valdris  
+**Domain:** Public Transit Delay Prediction  
+**Task Type:** Regression / Classification  
+**Status:** Conceptual documentation — implementation pending
 
 ---
 
-## The Complete ML Workflow
+## Project Overview
 
-### 1. Raw Data Collection
-The starting point is historical transit data — trip logs, scheduled vs. actual arrival times, route IDs, stop sequences, timestamps, and external factors like weather or events. This data is almost always messy: missing arrival times, duplicate trip records, inconsistent route naming, and outlier values from sensor errors.
+Metrovia analyzes historical bus and metro transit data to predict delay durations and severity for upcoming trips. The goal is to alert commuters 30 minutes before a delay occurs, based on patterns learned from years of historical trip records.
 
-**Key principle:** Models only understand numbers. A route name like "Route 42B" or a timestamp like "08:32:00" means nothing to a model until it is transformed into a numerical representation.
+**Example output:**
+> Route 7, Stop 14, 8:45 AM Monday → 87% probability of delay > 5 minutes
 
----
-
-### 2. Data Cleaning & Preprocessing
-Before any modeling, the raw data must be made usable:
-- Remove duplicate trip records
-- Handle missing delay values (impute or drop)
-- Standardize inconsistent formats (e.g., route names, date formats)
-- Filter out sensor noise and extreme outliers
-
-In Metrovia, this means ensuring every trip record has a valid scheduled time, actual time, route ID, and stop ID before moving forward.
+The model does not guarantee outcomes. It says: based on everything learned from historical data, this is the most likely result.
 
 ---
 
-### 3. Feature Engineering
-This is the most critical step. Raw columns are transformed into signals the model can actually learn from.
+## Repository Structure
 
-| Raw Data | Engineered Feature | Why It Matters |
-|---|---|---|
-| Scheduled time & actual time | `delay_minutes` | The target variable |
-| Timestamp | `hour_of_day`, `day_of_week`, `is_rush_hour` | Captures peak patterns |
-| Date | `is_weekend`, `is_holiday` | Different delay behavior |
-| Route ID | `route_avg_delay_30d` | Encodes historical route performance |
-| Stop sequence | `stop_position_ratio` | End-of-line stops delay more |
-| Weather data | `is_raining`, `temperature_bin` | External delay drivers |
+```
+metrovia/
+├── data/
+│   ├── raw/                        ← Original trip logs, weather records (immutable)
+│   └── processed/                  ← Cleaned, feature-engineered records ready for modeling
+├── notebooks/
+│   └── exploratory_analysis.ipynb  ← Delay distribution plots, route-level EDA
+├── src/
+│   ├── data_preprocessing.py       ← Deduplication, missing value handling, format standardization
+│   ├── feature_engineering.py      ← delay_minutes, hour_of_day, route_avg_delay_30d, etc.
+│   ├── train.py                    ← Gradient boosting regressor, model serialization
+│   └── evaluate.py                 ← RMSE, Precision, Recall, F1 on held-out test set
+├── models/
+│   └── delay_model.pkl             ← Serialized trained model artifact
+├── requirements.txt                ← Pinned library versions
+├── README.md                       ← This file
+└── main.py                         ← Entry point that runs the full pipeline
+```
 
-Feature engineering consumes 60–80% of total project effort. A simple model with great features will outperform a complex model with poor features every time.
-
----
-
-### 4. Model Training
-The model learns a function that maps features → predicted delay. For Metrovia, this could be:
-- A **regression model** to predict exact delay in minutes
-- A **classification model** to predict delay severity (on-time / minor / major)
-
-During training, the model examines thousands of labeled historical trips, measures prediction error using a loss function, and adjusts its internal parameters to minimize that error. The output is a trained model artifact — a saved object that encodes everything learned from the data.
-
----
-
-### 5. Evaluation (on held-out data)
-The model is tested on trips it has never seen before. This gives an honest estimate of real-world performance.
-
-Metrics used:
-- **RMSE** — average magnitude of delay prediction error (regression)
-- **Precision / Recall** — for classifying severe delays without too many false alarms
-- **F1 Score** — balance between catching real delays and avoiding false alerts
-
-Without evaluation on unseen data, there is no way to know if the model actually works or has simply memorized the training set.
+`data/raw/` is treated as immutable — it is never overwritten. Processed data can always be regenerated from raw data using the preprocessing scripts. `src/` isolates each pipeline stage so each module is independently testable and replaceable. Notebooks are kept separate from source code because they cannot be imported, are hard to test, and are easy to run out of order.
 
 ---
 
-### 6. Prediction
-Once deployed, the model receives new trip data in real time, applies the same feature transformations used during training, and outputs a predicted delay or delay probability.
+## Problem Definition
 
-Example output:
-- Route 7, Stop 14, 8:45 AM Monday → **87% probability of delay > 5 minutes**
+| Property | Value |
+|---|---|
+| Target variable | `delay_minutes` (difference between scheduled and actual arrival) |
+| Task type | Regression (predict exact delay) or Classification (on-time / minor / major) |
+| Primary metric | RMSE for regression; Precision, Recall, F1 for classification |
+| Business objective | Predict delays 30 minutes in advance to alert commuters |
+| Training data | 18 months of historical trip records |
+| Test data | Most recent 6 months (time-based split — not random) |
 
-This is probabilistic, not certain. The model says: "Based on everything learned from historical data, this is the most likely outcome." It does not guarantee the outcome.
-
-**Critical:** The exact same feature transformations applied during training must be applied at prediction time. Any mismatch causes silent, hard-to-debug errors.
-
----
-
-### 7. Monitoring (Ongoing)
-After deployment, the world keeps changing. Bus schedules change, new routes open, commuter patterns shift seasonally. The model's learned assumptions gradually become stale.
-
-Monitoring involves:
-- Tracking prediction accuracy over time in production
-- Detecting **data drift** — when incoming trip data looks different from training data
-- Detecting **concept drift** — when the relationship between features and delays changes
-- Triggering retraining when performance drops below acceptable thresholds
-
-A model that was accurate at launch can silently degrade over months without monitoring.
+The time-based split is intentional. A random split on temporal data would allow the model to train on future trips and evaluate on past ones, which is a form of data leakage.
 
 ---
 
-## How the Stages Connect
+## ML Workflow
 
 ```
 Raw Transit Data
       ↓
-Data Cleaning (remove noise, fix formats)
+Data Cleaning        (remove noise, fix formats, handle missing values)
       ↓
-Feature Engineering (encode time, route history, weather)
+Feature Engineering  (encode time, route history, weather signals)
       ↓
-Model Training (learn delay patterns from labeled trips)
+Train / Test Split   (18 months train → 6 months held out)
       ↓
-Evaluation (test on unseen trips, measure RMSE / F1)
+Model Training       (gradient boosting regressor)
       ↓
-Deployment (predict delays on live trip data)
+Evaluation           (RMSE / F1 on held-out test set)
       ↓
-Monitoring (track drift, retrain when needed)
+Deployment           (live trip data → same feature pipeline → model prediction)
+      ↓
+Monitoring           (drift detection, retraining triggers)
 ```
 
 Each stage feeds the next. A failure at any stage propagates forward — bad data produces bad features, bad features produce a bad model, a bad model produces harmful predictions.
 
 ---
 
-## Real-World Example: Predicting Morning Rush Delays on Route 12
+## Data Cleaning
 
-**Business problem:** Commuters on Route 12 frequently experience unexpected delays between 8–9 AM. The authority wants to predict these delays 30 minutes in advance.
+Raw transit data is messy by default: missing arrival times, duplicate trip records, inconsistent route naming, and outlier values from sensor errors.
 
-**Raw data:** Trip logs for Route 12 over 2 years — scheduled departure, actual departure, stop-level timestamps, weather records, special event calendar.
+Preprocessing steps:
+- Remove duplicate trip records
+- Impute or drop missing delay values
+- Standardize route names and date/time formats
+- Filter sensor noise and extreme outliers (e.g., recorded delays of 400 minutes)
 
-**Features engineered:**
-- `delay_last_trip` — did the previous trip on this route run late? (cascading delay signal)
-- `is_rush_hour` — binary flag for 7–9 AM and 5–7 PM
-- `rain_intensity` — binned rainfall from weather API
-- `route_12_avg_delay_7d` — rolling 7-day average delay for this route
-- `stops_remaining` — delays compound toward end of route
-
-**Model:** Gradient boosting regressor trained on 18 months of data, evaluated on the most recent 6 months.
-
-**Prediction:** For an upcoming 8:15 AM trip, the model outputs: *predicted delay = 7.3 minutes*. The app alerts commuters to expect a late arrival.
-
-**Monitoring:** After a new bus fleet is introduced, average delays drop. The model starts over-predicting delays. Drift is detected, and the model is retrained on recent data.
+Every trip record must have a valid scheduled time, actual time, route ID, and stop ID before moving to feature engineering.
 
 ---
 
-## Failure Scenario: Data Leakage in Evaluation
+## Feature Engineering
 
-**What goes wrong:** During feature engineering, a feature called `actual_arrival_time` is accidentally included in the training data. This column is derived from the same source as the target variable (`delay_minutes`). The model learns to "predict" delays using information it would never have access to at real prediction time.
+Feature engineering is where domain knowledge becomes model input. Raw columns are transformed into numerical signals the model can learn from.
 
-**Stage of failure:** Evaluation — the model appears to achieve near-perfect accuracy on the test set.
+| Raw Data | Engineered Feature | Why It Matters |
+|---|---|---|
+| Scheduled time & actual time | `delay_minutes` | The target variable |
+| Timestamp | `hour_of_day`, `day_of_week`, `is_rush_hour` | Captures peak congestion patterns |
+| Date | `is_weekend`, `is_holiday` | Different delay behavior on non-workdays |
+| Route ID | `route_avg_delay_30d` | Encodes historical route-level performance |
+| Stop sequence | `stop_position_ratio` | End-of-line stops accumulate more delay |
+| Weather data | `is_raining`, `temperature_bin` | External factors that drive delays |
+| Previous trip | `delay_last_trip` | Cascading delay signal |
+| Rolling window | `route_avg_delay_7d` | Recent route performance without single-day noise |
 
-**What happens in production:** The feature `actual_arrival_time` is not available when predicting future trips (since the trip hasn't happened yet), so it is dropped. Model performance collapses immediately after deployment.
+Feature engineering consumes 60–80% of total project effort. A simple model with well-engineered features will outperform a complex model with poor features every time.
 
-**How to diagnose:** Compare features available at training time vs. features available at prediction time. Any feature derived from post-event data is a leakage risk. Always simulate the prediction-time data environment during evaluation.
+**Critical:** The exact same transformations applied during training must be applied at prediction time. Any mismatch causes silent, hard-to-debug errors in production.
+
+---
+
+## Model Training
+
+**Algorithm:** Gradient boosting regressor  
+**Training set:** 18 months of historical trip data  
+**Test set:** Most recent 6 months (held out, never used during training)
+
+The model learns a function that maps engineered features to predicted delay. During training it examines thousands of labeled historical trips, measures prediction error using a loss function, and adjusts its internal parameters to minimize that error. The output is a serialized model artifact saved to `models/delay_model.pkl`.
+
+---
+
+## Evaluation
+
+The model is evaluated on the held-out 6-month test set — trips it has never seen during training.
+
+**Regression metrics:**
+- **RMSE** — root mean squared error; penalizes large errors more than small ones, appropriate when a 20-minute delay is much worse than a 2-minute delay
+
+**Classification metrics:**
+- **Precision** — of all trips flagged as delayed, how many actually were?
+- **Recall** — of all trips that were actually delayed, how many did the model catch?
+- **F1 Score** — harmonic mean of precision and recall; useful when both false positives (unnecessary alerts) and false negatives (missed delays) carry real cost
+
+Accuracy alone is not reported. If 90% of trips run on time, a model that always predicts "on-time" achieves 90% accuracy and is completely useless. Precision and recall tell the real story.
+
+---
+
+## Failure Scenario: Data Leakage
+
+**What goes wrong:** During feature engineering, `actual_arrival_time` is accidentally included as a training feature. This column is derived from the same source as the target variable (`delay_minutes`). The model learns to "predict" delays using information it would never have at real prediction time.
+
+**What it looks like:** Near-perfect accuracy on the test set.
+
+**What happens in production:** `actual_arrival_time` is unavailable for future trips (the trip hasn't happened yet), so it is dropped. Model performance collapses immediately after deployment.
+
+**How to diagnose:** Compare features available at training time against features available at prediction time. Any feature derived from post-event data is a leakage risk. Always simulate the prediction-time data environment during evaluation.
+
+---
+
+## Monitoring
+
+After deployment, the world keeps changing. Bus schedules change, new routes open, commuter patterns shift seasonally.
+
+- **Data drift** — incoming trip data starts looking different from training data (e.g., a new fleet reduces average delays)
+- **Concept drift** — the relationship between features and delays changes (e.g., a new express lane changes how `stop_position_ratio` relates to delay)
+
+When drift is detected or performance drops below threshold, the model is retrained on recent data. A model that was accurate at launch can silently degrade over months without monitoring.
+
+---
+
+## Repository Analysis
+
+### Strength: Explicit Data Leakage Awareness
+
+The most technically mature aspect of this project is the dedicated failure scenario on data leakage. Rather than mentioning leakage as a vague warning, the README traces a specific, realistic failure from feature engineering through evaluation to production collapse — and provides a concrete diagnostic method. This reflects genuine ML engineering awareness that separates thoughtful practitioners from beginners focused only on accuracy numbers.
+
+### Weakness: No Reproducibility Infrastructure
+
+The most significant gap is the absence of reproducibility controls:
+
+- No `requirements.txt` — no pinned library versions. The environment cannot be reconstructed by someone else.
+- No `random_state` — gradient boosting uses internal randomness. Without a fixed seed, every training run produces slightly different results and specific metrics cannot be reproduced.
+- No run instructions — the README explains the workflow conceptually but provides no commands. A new contributor cannot reproduce results without contacting the original author.
+- No reported metrics — there are no actual RMSE or F1 values anywhere. Without numbers, there is nothing to evaluate or compare against.
+
+**Fix:** Add `requirements.txt` with pinned versions, set `random_state=42` on the model and train/test split, add a "How to Run" section with exact commands, and report actual evaluation results with a naive baseline for comparison.
 
 ---
 
@@ -146,5 +190,6 @@ Each stage feeds the next. A failure at any stage propagates forward — bad dat
 - Models do not understand business meaning — everything must be encoded as numbers
 - Feature engineering determines model success more than algorithm choice
 - Always evaluate on data the model has never seen
+- The training feature pipeline and the serving feature pipeline must be identical
 - Monitoring is not optional — the world changes, and models must adapt
 - When a model fails, look at the data and features first, not the algorithm
