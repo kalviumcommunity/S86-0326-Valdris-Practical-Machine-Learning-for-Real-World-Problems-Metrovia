@@ -26,15 +26,15 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     df_clean = df.copy()
     
-    # Example: Handle 'TotalCharges' being string but numeric
-    if "TotalCharges" in df_clean.columns:
-        df_clean["TotalCharges"] = pd.to_numeric(df_clean["TotalCharges"], errors="coerce")
-        # Impute missing with median for basic cleaning
-        df_clean["TotalCharges"] = df_clean["TotalCharges"].fillna(df_clean["TotalCharges"].median())
+    # Standardize types and fill simple missing values
+    if "delay_minutes" in df_clean.columns:
+        df_clean["delay_minutes"] = pd.to_numeric(df_clean["delay_minutes"], errors="coerce")
+        # Impute missing delay with 0 (assuming no delay)
+        df_clean["delay_minutes"] = df_clean["delay_minutes"].fillna(0)
     
-    # Drop customerID as it's not a predictor
-    if "customerID" in df_clean.columns:
-        df_clean = df_clean.drop(columns=["customerID"])
+    # Drop IDs that aren't useful as raw features (unless using as categorical)
+    if "trip_id" in df_clean.columns:
+        df_clean = df_clean.drop(columns=["trip_id"])
         
     return df_clean
 
@@ -57,6 +57,6 @@ def split_data(
         A tuple containing (X_train, X_test, y_train, y_test).
     """
     X = df.drop(columns=[target_column])
-    y = df[target_column].apply(lambda x: 1 if x == "Yes" else 0) # Encoding Yes/No target to 1/0
+    y = df[target_column] # delay_minutes remains numeric for regression 
     
-    return train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=y)
+    return train_test_split(X, y, test_size=test_size, random_state=random_state)

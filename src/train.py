@@ -1,25 +1,25 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 
 def train_model(
     X_train: pd.DataFrame, 
     y_train: pd.Series, 
     random_state: int = 42
-) -> RandomForestClassifier:
+) -> RandomForestRegressor:
     """
-    Fit a model on the provided training data.
+    Fit a regressor on the transit trip data to predict delay minutes.
     
     Args:
         X_train: Transformed feature DataFrame.
-        y_train: Target labels.
+        y_train: Target labels (target: delay_minutes).
         random_state: Random state for reproducibility.
         
     Returns:
-        Fitted RandomForest model object.
+        Fitted RandomForest regression model.
     """
-    model = RandomForestClassifier(
+    model = RandomForestRegressor(
         n_estimators=100, 
-        max_depth=5, 
+        max_depth=7, 
         random_state=random_state
     )
     

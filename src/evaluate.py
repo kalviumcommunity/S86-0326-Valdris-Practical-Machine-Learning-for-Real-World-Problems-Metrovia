@@ -1,5 +1,6 @@
 import pandas as pd
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+import numpy as np
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 def evaluate_model(
     model, 
@@ -7,28 +8,25 @@ def evaluate_model(
     y_test: pd.Series
 ) -> dict:
     """
-    Evaluate the fitted model on test data and return key performance metrics.
+    Evaluate the fitted regressor on transit data and return key performance metrics.
     
     Args:
-        model: Trained classifier (supports predict and predict_proba).
+        model: Trained regressor object.
         X_test: Transformed test feature DataFrame.
-        y_test: Encoded test target labels.
+        y_test: True delay minutes.
         
     Returns:
-        A dictionary containing (accuracy, precision, recall, f1, roc_auc).
+        A dictionary containing (MAE, RMSE, R2, Median Absolute Error).
     """
     
     # Generate predictions
     y_pred = model.predict(X_test)
-    y_probs = model.predict_proba(X_test)[:, 1]
     
-    # Compute metrics
+    # Compute regression metrics
     metrics = {
-        "accuracy": accuracy_score(y_test, y_pred),
-        "precision": precision_score(y_test, y_pred),
-        "recall": recall_score(y_test, y_pred),
-        "f1": f1_score(y_test, y_pred),
-        "roc_auc": roc_auc_score(y_test, y_probs)
+        "mean_absolute_error": mean_absolute_error(y_test, y_pred),
+        "root_mean_squared_error": np.sqrt(mean_squared_error(y_test, y_pred)),
+        "r2_score": r2_score(y_test, y_pred)
     }
     
     return metrics

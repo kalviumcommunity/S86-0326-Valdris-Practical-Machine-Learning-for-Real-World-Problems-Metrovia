@@ -42,16 +42,16 @@ def main():
     X_test_processed = pipeline.transform(X_test)
 
     # 5. Training
-    print("Training RandomForest model...")
+    print("Training Transit Delay Regressor...")
     model = train_model(X_train_processed, y_train, RANDOM_STATE)
 
     # 6. Evaluation
-    print("Evaluating model performance...")
+    print("Evaluating prediction accuracy...")
     metrics = evaluate_model(model, X_test_processed, y_test)
     
     print("\nModel Metrics:")
     for metric, value in metrics.items():
-        print(f"  {metric.capitalize()}: {value:.4f}")
+        print(f"  {metric.replace('_', ' ').title()}: {value:.4f}")
 
     # 7. Persistence
     print(f"\nSaving model to {MODEL_PATH}...")
