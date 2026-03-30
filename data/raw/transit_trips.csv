@@ -1,0 +1,11 @@
+﻿trip_id,route_id,stop_id,scheduled_hour,route_avg_delay_30d,temperature,weather_condition,delay_minutes
+T1,R101,S001,8,2.5,15,Sunny,2.1
+T2,R101,S002,9,2.5,15,Sunny,3.5
+T3,R102,S005,17,10.0,5,Rainy,12.2
+T4,R103,S010,7,1.2,18,Cloudy,0.5
+T5,R101,S001,8,2.8,16,Sunny,1.8
+T6,R102,S005,18,9.5,4,Rainy,15.0
+T7,R104,S020,12,0.5,22,Sunny,0.0
+T8,R104,S021,13,0.6,23,Sunny,1.2
+T9,R101,S003,10,2.4,14,Cloudy,4.1
+T10,R102,S006,19,11.0,3,Rainy,10.5

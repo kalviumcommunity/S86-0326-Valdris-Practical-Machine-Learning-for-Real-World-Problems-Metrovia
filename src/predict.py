@@ -44,26 +44,24 @@ def predict(
     pipeline
 ) -> pd.DataFrame:
     """
-    Apply pre-trained models to generate predictions on fresh data.
+    Apply pre-trained models to generate transit delay predictions on fresh data.
     
     Args:
-        new_data: Input raw DataFrame (not cleaned/encoded).
-        model: Loaded model object.
-        pipeline: Loaded preprocessing pipeline.
+        new_data: Input raw trip records.
+        model: Loaded regressor object.
+        pipeline: Loaded preprocessing pipeline transformer.
         
     Returns:
-        pandas DataFrame containing original features and prediction probabilities.
+        pandas DataFrame containing original features and predicted delay_minutes.
     """
     # Transform raw incoming data
     X_processed = pipeline.transform(new_data)
     
     # Generate predictions
     predictions = model.predict(X_processed)
-    probabilities = model.predict_proba(X_processed)[:, 1]
     
     # Return a copy of the input data with prepended predictions
     result_df = new_data.copy()
-    result_df["Churn_Prediction"] = predictions
-    result_df["Churn_Probability"] = probabilities
+    result_df["predicted_delay_minutes"] = predictions
     
     return result_df
