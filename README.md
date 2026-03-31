@@ -185,6 +185,28 @@ The most significant gap is the absence of reproducibility controls:
 
 ---
 
+## How to Run
+
+**Setup (first time):**
+```bash
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # macOS/Linux
+pip install -r requirements.txt
+```
+
+**Run the pipeline:**
+```bash
+python main.py
+```
+
+**Deactivate when done:**
+```bash
+deactivate
+```
+
+---
+
 ## Key Principles
 
 - Models do not understand business meaning — everything must be encoded as numbers
