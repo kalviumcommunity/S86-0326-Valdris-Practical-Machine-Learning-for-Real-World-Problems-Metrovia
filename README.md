@@ -187,6 +187,8 @@ The most significant gap is the absence of reproducibility controls:
 
 ## How to Run
 
+**Requirements:** Python 3.10+
+
 **Setup (first time):**
 ```bash
 python -m venv venv
