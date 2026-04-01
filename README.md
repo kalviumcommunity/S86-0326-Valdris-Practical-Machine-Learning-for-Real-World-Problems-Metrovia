@@ -3,7 +3,7 @@
 **Analyst:** Valdris  
 **Domain:** Public Transit Delay Prediction  
 **Task Type:** Regression / Classification  
-**Status:** Conceptual documentation — implementation pending
+**Status:** Implementation Complete — Modular Workflow Separated
 
 ---
 
@@ -11,10 +11,12 @@
 
 Metrovia analyzes historical bus and metro transit data to predict delay durations and severity for upcoming trips. The goal is to alert commuters 30 minutes before a delay occurs, based on patterns learned from years of historical trip records.
 
-**Example output:**
-> Route 7, Stop 14, 8:45 AM Monday → 87% probability of delay > 5 minutes
+### Core Architecture: Separation of Concerns
+The codebase is designed with a strict separation between **Training** and **Inference** modes to ensure reproducibility and prevent data leakage:
 
-The model does not guarantee outcomes. It says: based on everything learned from historical data, this is the most likely result.
+- **Data Loading Layer**: Responsible only for reading and basic cleaning of raw data.
+- **Training Layer**: Handles fitting of preprocessing pipelines and the model. It is the only layer allowed to use `fit()` or `fit_transform()`.
+- **Inference Layer**: Consumes saved artifacts to generate predictions on new data using `transform()` only, ensuring training-time parameters are reused exactly.
 
 ---
 
@@ -23,23 +25,40 @@ The model does not guarantee outcomes. It says: based on everything learned from
 ```
 metrovia/
 ├── data/
-│   ├── raw/                        ← Original trip logs, weather records (immutable)
-│   └── processed/                  ← Cleaned, feature-engineered records ready for modeling
-├── notebooks/
-│   └── exploratory_analysis.ipynb  ← Delay distribution plots, route-level EDA
-├── src/
-│   ├── data_preprocessing.py       ← Deduplication, missing value handling, format standardization
-│   ├── feature_engineering.py      ← delay_minutes, hour_of_day, route_avg_delay_30d, etc.
-│   ├── train.py                    ← Gradient boosting regressor, model serialization
-│   └── evaluate.py                 ← RMSE, Precision, Recall, F1 on held-out test set
+│   ├── raw/                        ← Original trip logs (immutable)
+│   └── processed/                  ← Cleaned, feature-engineered records
 ├── models/
-│   └── delay_model.pkl             ← Serialized trained model artifact
-├── requirements.txt                ← Pinned library versions
-├── README.md                       ← This file
-└── main.py                         ← Entry point that runs the full pipeline
+│   ├── delay_model.pkl             ← Serialized trained model artifact
+│   └── preprocessing_pipeline.pkl  ← Serialized fitted preprocessing steps
+├── src/
+│   ├── config.py                   ← Centralized constants and paths
+│   ├── data_preprocessing.py       ← Data loading and cleaning logic
+│   ├── feature_engineering.py      ← Scikit-learn Pipeline construction
+│   ├── train.py                    ← Model fitting and training logic
+│   ├── predict.py                  ← Inference logic and artifact loading
+│   ├── evaluate.py                 ← Regression metrics (MAE, RMSE, R2)
+│   └── persistence.py              ← Model saving/loading utilities
+├── main.py                         ← Orchestration for full training pipeline
+├── inference_example.py            ← Demonstrates standalone inference mode
+├── requirements.txt                ← Project dependencies
+└── README.md                       ← This file
 ```
 
-`data/raw/` is treated as immutable — it is never overwritten. Processed data can always be regenerated from raw data using the preprocessing scripts. `src/` isolates each pipeline stage so each module is independently testable and replaceable. Notebooks are kept separate from source code because they cannot be imported, are hard to test, and are easy to run out of order.
+---
+
+## Getting Started
+
+### 1. Training the Model
+Run the main script to load data, fit the preprocessing pipeline, train the regressor, and save the artifacts:
+```powershell
+python main.py
+```
+
+### 2. Running Inference
+To generate predictions on new, unseen data without re-triggering the training logic:
+```powershell
+python inference_example.py
+```
 
 ---
 
@@ -47,7 +66,11 @@ metrovia/
 
 | Property | Value |
 |---|---|
-| Target variable | `delay_minutes` (difference between scheduled and actual arrival) |
+| Problem Type | **Supervised Learning: Regression** |
+| Target variable | `delay_minutes` (continuous numerical value) |
+| Model Family | `RandomForestRegressor` (Non-linear ensemble) |
+| Success Metrics | Mean Absolute Error (MAE), Root Mean Squared Error (RMSE) |
+
 | Task type | Regression (predict exact delay) or Classification (on-time / minor / major) |
 | Primary metric | RMSE for regression; Precision, Recall, F1 for classification |
 | Business objective | Predict delays 30 minutes in advance to alert commuters |
@@ -180,6 +203,8 @@ The most significant gap is the absence of reproducibility controls:
 - No `random_state` — gradient boosting uses internal randomness. Without a fixed seed, every training run produces slightly different results and specific metrics cannot be reproduced.
 - No run instructions — the README explains the workflow conceptually but provides no commands. A new contributor cannot reproduce results without contacting the original author.
 - No reported metrics — there are no actual RMSE or F1 values anywhere. Without numbers, there is nothing to evaluate or compare against.
+
+
 
 **Fix:** Add `requirements.txt` with pinned versions, set `random_state=42` on the model and train/test split, add a "How to Run" section with exact commands, and report actual evaluation results with a naive baseline for comparison.
 
