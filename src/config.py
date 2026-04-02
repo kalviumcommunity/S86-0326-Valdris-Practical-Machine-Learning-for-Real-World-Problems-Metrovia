@@ -14,11 +14,39 @@ PIPELINE_PATH = os.path.join(MODELS_DIR, "preprocessing_pipeline.pkl")
 # Experiment settings
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
+
+# --- Feature and Target Definition ---
+
+# Target definition
+# Represents the actual delay in minutes for a given transit trip at a specific stop.
+# This is a continuous numerical value (regression).
 TARGET_COLUMN = "delay_minutes"
 
-# Feature lists
-CATEGORICAL_COLS = [
-    "route_id", "stop_id", "weather_condition"
+# Numerical features
+# Information available at prediction time from historical logs and real-time sensors.
+NUMERICAL_FEATURES = [
+    "scheduled_hour",       # Hour of the day (0-23)
+    "route_avg_delay_30d",  # Historical performance of the route
+    "temperature"           # Real-time weather data
 ]
 
-NUMERICAL_COLS = ["scheduled_hour", "route_avg_delay_30d", "temperature"]
+# Categorical features
+# Discrete labels representing the route, location, and conditions.
+CATEGORICAL_FEATURES = [
+    "route_id", 
+    "stop_id", 
+    "weather_condition"
+]
+
+# Excluded columns
+# Columns that carry no predictive signal or would cause leakage if included.
+EXCLUDED_COLUMNS = [
+    "trip_id"  # Unique identifier, no generalizable predictive value
+]
+
+# Derived
+ALL_FEATURES = NUMERICAL_FEATURES + CATEGORICAL_FEATURES
+
+# Validation (optional but recommended for robustness)
+# assert TARGET_COLUMN not in ALL_FEATURES, "Target leaked into features!"
+# -------------------------------------

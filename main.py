@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from src.config import (
     RAW_DATA_PATH, PROCESSED_DATA_PATH, MODEL_PATH, PIPELINE_PATH, 
-    TARGET_COLUMN, TEST_SIZE, RANDOM_STATE, CATEGORICAL_COLS, NUMERICAL_COLS
+    TARGET_COLUMN, TEST_SIZE, RANDOM_STATE, CATEGORICAL_FEATURES, NUMERICAL_FEATURES, ALL_FEATURES
 )
 from src.data_preprocessing import load_data, clean_data, split_data
 from src.feature_engineering import build_preprocessing_pipeline
@@ -28,18 +28,20 @@ def main():
     
     # 3. Splitting
     print(f"Splitting data with test size {TEST_SIZE} and random state {RANDOM_STATE}...")
+    # Using explicit feature columns from config to prevent leakage and exclude IDs
     X_train, X_test, y_train, y_test = split_data(
-        df_clean, TARGET_COLUMN, TEST_SIZE, RANDOM_STATE
+        df_clean, TARGET_COLUMN, ALL_FEATURES, TEST_SIZE, RANDOM_STATE
     )
 
     # 4. Feature Engineering
     print("Building and fitting preprocessing pipeline...")
-    pipeline = build_preprocessing_pipeline(CATEGORICAL_COLS, NUMERICAL_COLS)
+    pipeline = build_preprocessing_pipeline(CATEGORICAL_FEATURES, NUMERICAL_FEATURES)
     
     # Fit and transform training data
     X_train_processed = pipeline.fit_transform(X_train)
     # Only transform test data (no fitting to prevent leakage)
     X_test_processed = pipeline.transform(X_test)
+
 
     # 5. Training
     print("Training Transit Delay Regressor...")
