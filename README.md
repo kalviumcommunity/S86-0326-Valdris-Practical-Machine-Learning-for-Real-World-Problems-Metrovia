@@ -81,6 +81,42 @@ The time-based split is intentional. A random split on temporal data would allow
 
 ---
 
+## Feature and Target Definition
+
+Before training, we explicitly define the boundaries of our model to ensure validity and prevent data leakage.
+
+### Target Variable
+- **Column:** `delay_minutes`
+- **Type:** Regression (Continuous)
+- **Business Meaning:** The actual delay in minutes for a given transit trip at a specific stop. A value of 0 indicates the trip arrived on or before its scheduled time.
+- **Goal:** Predict this value 30 minutes before the scheduled arrival.
+
+### Features (6 total)
+Our model uses only information available at the time of prediction (30 minutes before arrival).
+
+#### Numerical Features (3)
+- `scheduled_hour`: The hour of the day (0-23). Captures peak congestion patterns (rush hour).
+- `route_avg_delay_30d`: The historical average delay for this specific route over the last 30 days. Encodes route-level performance trends.
+- `temperature`: Real-time outdoor temperature. Weather extremes often correlate with transit delays.
+
+#### Categorical Features (3)
+- `route_id`: Unique identifier for the transit route.
+- `stop_id`: Unique identifier for the specific transit stop.
+- `weather_condition`: Discrete labels (Sunny, Rainy, Cloudy, etc.) representing current environmental conditions.
+
+### Excluded Columns
+- `trip_id`: **Reason: Identifier.** This is a unique string for each row. Including it would lead to overfitting as the model might "memorize" specific trips rather than learning generalizable patterns.
+- `actual_arrival_time`: **Reason: Leakage.** This information is only known *after* the trip concludes. Including it would allow the model to calculate the delay perfectly in training, but it would be unavailable for real-time predictions.
+
+### Problem Type & Metrics
+- **Task:** Regression
+- **Objective:** Minimize the difference between predicted and actual delay minutes.
+- **Metrics:** 
+  - **MAE (Mean Absolute Error):** Average magnitude of errors in minutes.
+  - **RMSE (Root Mean Squared Error):** Penalizes larger delay prediction errors more heavily.
+
+---
+
 ## ML Workflow
 
 ```
